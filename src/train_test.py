@@ -14,6 +14,8 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
 
             # agent pick action ...
             # args.warmup: time without training but only filling the memory
+            if isinstance(s_t, tuple):
+                s_t = s_t[0]
             if step <= warmup:
                 action = agent.random_action()
             else:
@@ -22,8 +24,7 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
             # env response with next_observation, reward, terminate_info
             if not continuous:
                 action = action.reshape(1,).astype(int)[0]
-            s_t1, r_t, done, _ = env.step(action)
-
+            s_t1, r_t, done, _, _ = env.step(action)
             if max_episode_length and episode_steps >= max_episode_length - 1:
                 done = True
 

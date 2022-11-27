@@ -102,6 +102,8 @@ class DDPG(object):
 
     def observe(self, r_t, s_t1, done):
         if self.is_training:
+            if isinstance(self.s_t, tuple):
+                self.s_t = self.s_t[0]
             self.memory.append(self.s_t, self.a_t, r_t, done)
             self.s_t = s_t1
 
@@ -112,6 +114,8 @@ class DDPG(object):
 
     def select_action(self, s_t, decay_epsilon=True):
         # proto action
+        if isinstance(s_t, tuple):
+            s_t = s_t[0]
         action = to_numpy(
             self.actor(to_tensor(np.array([s_t]), gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0])),
             gpu_used=self.gpu_used
