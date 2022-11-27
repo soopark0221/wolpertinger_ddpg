@@ -33,14 +33,18 @@ class DDPG(object):
         self.actor = Actor(self.nb_states, self.nb_actions, **net_cfg).double()
         self.actor_target = Actor(self.nb_states, self.nb_actions, **net_cfg).double()
         self.actor_optim = Adam(self.actor.parameters(), lr=args.p_lr, weight_decay=args.weight_decay)
+        self.actor_sample = Actor(self.nb_states, self.nb_actions, **net_cfg).double()
 
         self.critic = Critic(self.nb_states, self.nb_actions, **net_cfg).double()
         self.critic_target = Critic(self.nb_states, self.nb_actions, **net_cfg).double()
         self.critic_optim = Adam(self.critic.parameters(), lr=args.c_lr, weight_decay=args.weight_decay)
+        self.critic_sample = Critic(self.nb_states, self.nb_actions, **net_cfg).double()
 
         hard_update(self.actor_target, self.actor) # Make sure target is with the same weight
         hard_update(self.critic_target, self.critic)
-        
+        hard_update(self.actor_sample, self.actor) # Make sure target is with the same weight
+        hard_update(self.critic_sample, self.critic) # Make sure target is with the same weight
+
         #Create replay buffer
         self.memory = SequentialMemory(limit=args.rmsize, window_length=args.window_length)
         self.random_process = OrnsteinUhlenbeckProcess(size=self.nb_actions,
@@ -87,18 +91,25 @@ class DDPG(object):
         self.actor_target.cuda()
         self.critic.cuda()
         self.critic_target.cuda()
+        self.actor_sample.cuda()
+        self.critic_sample.cuda()
 
     def data_parallel(self):
         self.actor = nn.DataParallel(self.actor, device_ids=self.gpu_ids)
         self.actor_target = nn.DataParallel(self.actor_target, device_ids=self.gpu_ids)
         self.critic = nn.DataParallel(self.critic, device_ids=self.gpu_ids)
         self.critic_target = nn.DataParallel(self.critic_target, device_ids=self.gpu_ids)
+        self.actor_sample = nn.DataParallel(self.actor_sample, device_ids=self.gpu_ids)
+        self.critic_sample = nn.DataParallel(self.critic_sample, device_ids=self.gpu_ids)
+
 
     def to_device(self):
         self.actor.to(torch.device('cuda:{}'.format(self.gpu_ids[0])))
         self.actor_target.to(torch.device('cuda:{}'.format(self.gpu_ids[0])))
         self.critic.to(torch.device('cuda:{}'.format(self.gpu_ids[0])))
         self.critic_target.to(torch.device('cuda:{}'.format(self.gpu_ids[0])))
+        self.actor_sample.to(torch.device('cuda:{}'.format(self.gpu_ids[0])))
+        self.critic_sample.to(torch.device('cuda:{}'.format(self.gpu_ids[0])))
 
     def observe(self, r_t, s_t1, done):
         if self.is_training:
@@ -121,6 +132,25 @@ class DDPG(object):
             gpu_used=self.gpu_used
         ).squeeze(0)
         action += self.is_training * max(self.epsilon, 0) * self.random_process.sample()
+        action = np.clip(action, -1., 1.)
+
+        if decay_epsilon:
+            self.epsilon -= self.depsilon
+        
+        # self.a_t = action
+        return action
+        
+    def select_swag_action(self, s_t, decay_epsilon=True, expl=False):
+        # proto action
+        if isinstance(s_t, tuple):
+            s_t = s_t[0]
+        action = to_numpy(
+            self.actor_sample(to_tensor(np.array([s_t]), gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0])),
+            gpu_used=self.gpu_used
+        ).squeeze(0)
+        if expl:
+            action += self.is_training * max(self.epsilon, 0) * self.random_process.sample()
+
         action = np.clip(action, -1., 1.)
 
         if decay_epsilon:

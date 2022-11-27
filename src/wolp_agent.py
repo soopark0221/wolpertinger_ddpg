@@ -19,8 +19,12 @@ class WolpertingerAgent(DDPG):
         else:
             self.action_space = action_space.Discrete_space(max_actions)
             self.k_nearest_neighbors = max(1, int(max_actions * k_ratio))
-
-
+        self.epoch = 0
+        self.swag_lr = args.swag_lr
+        self.lr_init = args.lr_init
+        self.swag_start = args.swag_start
+        self.max_episode = args.max_episode
+        self.swag = args.swag
     def get_name(self):
         return 'Wolp3_{}k{}_{}'.format(self.action_space.get_number_of_actions(),
                                        self.k_nearest_neighbors, self.experiment)
@@ -60,6 +64,16 @@ class WolpertingerAgent(DDPG):
     def select_action(self, s_t, decay_epsilon=True):
         # taking a continuous action from the actor
         proto_action = super().select_action(s_t, decay_epsilon)
+
+        raw_wolp_action, wolp_action = self.wolp_action(s_t, proto_action)
+        assert isinstance(raw_wolp_action, np.ndarray)
+        self.a_t = raw_wolp_action
+        # return the best neighbor of the proto action, this is an action for env step
+        return wolp_action[0]  # [i]
+
+    def select_swag_action(self, s_t, decay_epsilon=True):
+        # taking a continuous action from the actor
+        proto_action = super().select_swag_action(s_t, decay_epsilon)
 
         raw_wolp_action, wolp_action = self.wolp_action(s_t, proto_action)
         assert isinstance(raw_wolp_action, np.ndarray)
@@ -130,3 +144,26 @@ class WolpertingerAgent(DDPG):
         # Target update
         soft_update(self.actor_target, self.actor, self.tau_update)
         soft_update(self.critic_target, self.critic, self.tau_update)
+
+        # update lr
+        lr = self.schedule(self.epoch)
+        self.adjust_learning_rate(self.actor_optim, lr)
+
+        # epoch
+        self.epoch += 1
+
+    def schedule(self, epoch):
+        t = (epoch) / (self.swag_start if self.swag else self.max_episode)
+        lr_ratio = self.swag_lr / self.lr_init if self.swag else 0.01
+        if t <= 0.5:
+            factor = 1.0
+        elif t <= 0.9:
+            factor = 1.0 - (1.0 - lr_ratio) * (t - 0.5) / 0.4
+        else:
+            factor = lr_ratio
+        return self.lr_init * factor
+
+    def adjust_learning_rate(self, optimizer, lr):
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+        return lr
