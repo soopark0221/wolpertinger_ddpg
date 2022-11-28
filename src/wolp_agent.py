@@ -157,17 +157,16 @@ class WolpertingerAgent(DDPG):
 
         # epoch
         self.epoch += 1
-
         # collect
         if self.swag and (episode+1) > self.swag_start:
             self.swag_model.collect_model(self.actor)
             # batch norm
             if episode == 0 or episode % self.eval_freq == self.eval_freq-1:
-                print(f'episode{episode}, eval batch')
+                #print(f'episode{episode}, eval batch')
                 self.swag_eval(state_batch)
             # sample and batch norm
             if episode % self.sample_freq == 0:
-                print(f'episode{episode}, sample batch')
+                #print(f'episode{episode}, sample batch')
                 self.swag_sample_param(state_batch)
 
     def swag_sample_param(self, state_batch):

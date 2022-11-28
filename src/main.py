@@ -103,7 +103,9 @@ if __name__ == "__main__":
             'save_model_dir': args.save_model_dir,
             'max_episode_length': args.max_episode_length,
             'logger': log['RS_log'],
-            'save_per_epochs': args.save_per_epochs
+            'save_per_epochs': args.save_per_epochs,
+            'swag':args.swag,
+            'swag_start':args.swag_start
         }
 
         train(**train_args)
@@ -117,7 +119,10 @@ if __name__ == "__main__":
             'test_episode': args.test_episode,
             'max_episode_length': args.max_episode_length,
             'logger': log['RS_log'],
-            'save_per_epochs': args.save_per_epochs
+            'save_per_epochs': args.save_per_epochs,
+            'swag':args.swag,
+            'swag_start':args.swag_start
+
         }
 
         test(**test_args)

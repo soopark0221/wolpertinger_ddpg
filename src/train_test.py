@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episode_length, logger, save_per_epochs, swag=False):
+def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episode_length, logger, save_per_epochs, swag_start, swag=False):
     agent.is_training = True
     step = episode = episode_steps = 0
     episode_reward = 0.
@@ -16,11 +16,14 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
             # args.warmup: time without training but only filling the memory
             if isinstance(s_t, tuple):
                 s_t = s_t[0]
-            if step <= warmup:
+            #if step <= warmup:
+            if episode < swag_start:
                 action = agent.random_action()
             else:
                 if swag:
                     action = agent.select_swag_action(s_t)
+                    refaction = agent.select_action(s_t)
+                    #print(action, refaction)
                 else:
                     action = agent.select_action(s_t)
 
