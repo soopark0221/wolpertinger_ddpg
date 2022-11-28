@@ -1,3 +1,6 @@
+
+import torch
+
 class SWAG(torch.nn.Module):
     def __init__(self, base, var_clamp=1e-6):
         super(SWAG, self).__init__()
@@ -12,13 +15,13 @@ class SWAG(torch.nn.Module):
         self.sq_mean = torch.zeros(self.num_parameters)
         self.n_models = torch.zeros(1, dtype=torch.long)
         self.max_rank = 50
-        self.cpv_mat_sqrt = torch.empty(0, self.num_parameters, dtype=torch.float32)
+        self.cov_mat_sqrt = torch.empty(0, self.num_parameters, dtype=torch.float32)
         self.rank = torch.zeros(1, dtype=torch.long)
     def collect_model(self, base_model):
         # need to refit the space after collecting a new model
         self.cov_factor = None
 
-        w = flatten([param.detach().cpu() for param in base_model.parameters()])
+        w = self.flatten([param.detach().cpu() for param in base_model.parameters()])
         # first moment
         self.mean.mul_(self.n_models.item() / (self.n_models.item() + 1.0))
         self.mean.add_(w / (self.n_models.item() + 1.0))
@@ -30,7 +33,7 @@ class SWAG(torch.nn.Module):
         dev_vector = w - self.mean
         if self.rank.item() + 1 > self.max_rank:
             self.cov_mat_sqrt = self.cov_mat_sqrt[1:, :]
-        self.cov_mat_sqrt = torch.cat((self.cov_mat_sqrt, vector.view(1, -1)), dim=0)
+        self.cov_mat_sqrt = torch.cat((self.cov_mat_sqrt, dev_vector.view(1, -1)), dim=0)
         self.rank = torch.min(self.rank + 1, torch.as_tensor(self.max_rank)).view(-1)
         self.n_models.add_(1)
 
@@ -42,15 +45,15 @@ class SWAG(torch.nn.Module):
         if self.cov_factor is not None:
             return
         self.cov_factor = self.cov_mat_sqrt.clone() / (self.cov_mat_sqrt.size(0) - 1) ** 0.5
-
-    def set_swa(self):
-        set_weights(self.base_model, self.mean, self.model_device)
+        self.cov_factor = self.cov_factor.double()
+    def set_swa(self, target_model):
+        self.set_weights(target_model, self.mean, self.model_device)
 
     def sample(self, target_model, scale=0.5, diag_noise=True):
         self.fit()
         mean, variance = self._get_mean_and_variance()
         #self.cov_factor = self.cov_mat_sqrt.clone() / (self.cov_mat_sqrt.size(0) - 1) ** 0.5
-        eps_low_rank = torch.randn(self.cov_factor.size()[0])
+        eps_low_rank = torch.randn(self.cov_factor.size()[0]).double()
         z = self.cov_factor.t() @ eps_low_rank
         if diag_noise:
             z += variance.sqrt() * torch.randn_like(variance)

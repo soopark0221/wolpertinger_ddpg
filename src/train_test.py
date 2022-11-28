@@ -20,7 +20,7 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
                 action = agent.random_action()
             else:
                 if swag:
-                    action = agent.select_action(s_t)
+                    action = agent.select_swag_action(s_t)
                 else:
                     action = agent.select_action(s_t)
 
@@ -34,7 +34,7 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
             # agent observe and update policy
             agent.observe(r_t, s_t1, done)
             if step > warmup:
-                agent.update_policy()
+                agent.update_policy(episode)
 
             # update
             step += 1

@@ -6,6 +6,8 @@ import action_space
 from util import *
 import torch.nn as nn
 import torch
+from swag_misc import SWAG
+import swag_utils
 criterion = nn.MSELoss()
 class WolpertingerAgent(DDPG):
 
@@ -25,6 +27,10 @@ class WolpertingerAgent(DDPG):
         self.swag_start = args.swag_start
         self.max_episode = args.max_episode
         self.swag = args.swag
+        self.swag_model = SWAG(self.actor)
+        self.eval_freq = args.eval_freq
+        self.sample_freq = args.sample_freq
+
     def get_name(self):
         return 'Wolp3_{}k{}_{}'.format(self.action_space.get_number_of_actions(),
                                        self.k_nearest_neighbors, self.experiment)
@@ -97,7 +103,7 @@ class WolpertingerAgent(DDPG):
         raw_wolp_action, wolp_action = self.wolp_action(s_t, proto_action)
         return raw_wolp_action
 
-    def update_policy(self):
+    def update_policy(self, episode):
         # Sample batch
         state_batch, action_batch, reward_batch, \
         next_state_batch, terminal_batch = self.memory.sample_and_split(self.batch_size)
@@ -146,11 +152,33 @@ class WolpertingerAgent(DDPG):
         soft_update(self.critic_target, self.critic, self.tau_update)
 
         # update lr
-        lr = self.schedule(self.epoch)
+        lr = self.schedule(episode)
         self.adjust_learning_rate(self.actor_optim, lr)
 
         # epoch
         self.epoch += 1
+
+        # collect
+        if self.swag and (episode+1) > self.swag_start:
+            self.swag_model.collect_model(self.actor)
+            # batch norm
+            if episode == 0 or episode % self.eval_freq == self.eval_freq-1:
+                print(f'episode{episode}, eval batch')
+                self.swag_eval(state_batch)
+            # sample and batch norm
+            if episode % self.sample_freq == 0:
+                print(f'episode{episode}, sample batch')
+                self.swag_sample_param(state_batch)
+
+    def swag_sample_param(self, state_batch):
+        # swag bn 
+        self.swag_model.sample(self.actor_sample, 0.5)
+        swag_utils.bn_update(state_batch,self.swag_model)
+
+    def swag_eval(self, state_batch):
+        # swag bn 
+        self.swag_model.set_swa(self.actor_sample)
+        swag_utils.bn_update(state_batch,self.swag_model)
 
     def schedule(self, epoch):
         t = (epoch) / (self.swag_start if self.swag else self.max_episode)
