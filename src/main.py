@@ -121,8 +121,6 @@ if __name__ == "__main__":
             'logger': log['RS_log'],
             'save_per_epochs': args.save_per_epochs,
             'swag':args.swag,
-            'swag_start':args.swag_start
-
         }
 
         test(**test_args)

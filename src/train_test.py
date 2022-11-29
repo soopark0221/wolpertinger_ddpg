@@ -17,13 +17,17 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
             if isinstance(s_t, tuple):
                 s_t = s_t[0]
             #if step <= warmup:
-            if episode < swag_start:
-                action = agent.random_action()
-            else:
-                if swag:
+            if swag:
+                if step < warmup:
+                    action = agent.random_action()
+                elif episode < swag_start:
+                    action = agent.select_action(s_t)
+                else:
                     action = agent.select_swag_action(s_t)
                     refaction = agent.select_action(s_t)
-                    #print(action, refaction)
+            else:
+                if step < warmup:
+                    action = agent.random_action()
                 else:
                     action = agent.select_action(s_t)
 
