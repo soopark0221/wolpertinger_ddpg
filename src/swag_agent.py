@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch
 from swag_misc import SWAG
 import swag_utils
-import time
+
 criterion = nn.MSELoss()
 
 criterion = nn.MSELoss()

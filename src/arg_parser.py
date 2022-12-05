@@ -40,12 +40,12 @@ def init_parser(alg):
         parser.add_argument('--weight-decay', default=0.0001, type=float, help='weight decay for L2 Regularization loss')
         parser.add_argument('--save_per_epochs', default=15, type=int, help='save model every X epochs')
         parser.add_argument('--swag_start', default=1000, type=int, help='')
-        parser.add_argument('--swag', action='store_true')
+        parser.add_argument('--swag', action='store_true', help='save swag params')
         parser.add_argument('--lr_init', default=0.001, type=float, help='')
         parser.add_argument('--swag_lr', default=0.0001, type=float, help='')
         parser.add_argument('--eval_freq', default=5, type=int, help='')
         parser.add_argument('--sample_freq', default=30, type=int, help='')
-        parser.add_argument('--alg', default='ddpg', type=str, help='[ddpg, swag, wol]')
+        parser.add_argument('--alg', default='ddpg', type=str, help='agent algorithm [ddpg, swag, wol]')
 
         return parser
 

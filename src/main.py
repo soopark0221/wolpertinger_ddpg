@@ -137,7 +137,6 @@ if __name__ == "__main__":
             'test_episode': args.test_episode,
             'max_episode_length': args.max_episode_length,
             'logger': log['RS_log'],
-            'save_per_epochs': args.save_per_epochs,
             'swag':args.swag,
             'alg':args.alg,
         }

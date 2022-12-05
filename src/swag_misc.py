@@ -14,7 +14,7 @@ class SWAG(torch.nn.Module):
         self.mean = torch.zeros(self.num_parameters)
         self.sq_mean = torch.zeros(self.num_parameters)
         self.n_models = torch.zeros(1, dtype=torch.long)
-        self.max_rank = 50
+        self.max_rank = 20
         self.cov_mat_sqrt = torch.empty(0, self.num_parameters, dtype=torch.float32)
         self.rank = torch.zeros(1, dtype=torch.long)
     def collect_model(self, base_model):
@@ -46,10 +46,13 @@ class SWAG(torch.nn.Module):
             return
         self.cov_factor = self.cov_mat_sqrt.clone() / (self.cov_mat_sqrt.size(0) - 1) ** 0.5
         self.cov_factor = self.cov_factor.double()
-    def set_swa(self, target_model):
+
+    def set_swa(self, target_model=None):
+        if target_model==None:
+            target_model = self.base_model
         self.set_weights(target_model, self.mean, self.model_device)
 
-    def sample(self, target_model, scale=0.5, diag_noise=True):
+    def sample(self, target_model=None, scale=0.5, diag_noise=True):
         self.fit()
         mean, variance = self._get_mean_and_variance()
         #self.cov_factor = self.cov_mat_sqrt.clone() / (self.cov_mat_sqrt.size(0) - 1) ** 0.5
@@ -61,6 +64,8 @@ class SWAG(torch.nn.Module):
         sample = mean + z
 
         # apply to parameters
+        if target_model == None:
+            target_model = self.base_model
         self.set_weights(target_model, sample, self.model_device)
         return sample
 

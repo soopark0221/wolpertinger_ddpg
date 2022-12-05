@@ -10,7 +10,8 @@ from model import (Actor, Critic)
 from memory import SequentialMemory
 from random_process import OrnsteinUhlenbeckProcess
 from util import *
-
+from swag_misc import SWAG
+import swag_utils
 
 criterion = nn.MSELoss()
 
@@ -63,6 +64,8 @@ class DDPG(object):
         self.a_t = None # Most recent action
         self.is_training = True
 
+
+        # SWAG params
         self.continious_action_space = False
         self.swag_lr = args.swag_lr
         self.lr_init = args.lr_init
@@ -71,6 +74,9 @@ class DDPG(object):
         self.swag = args.swag
         self.eval_freq = args.eval_freq
         self.sample_freq = args.sample_freq
+        self.swag_model = SWAG(self.actor)
+        self.swag_critic = SWAG(self.critic)
+
 
     def update_policy(self, episode):
         # Sample batch
@@ -116,6 +122,18 @@ class DDPG(object):
         # update lr
         lr = self.schedule(episode)
         self.adjust_learning_rate(self.actor_optim, lr)
+        self.adjust_learning_rate(self.critic_optim, lr) # if swag critic
+
+        # collect swag
+        if self.swag and (episode+1) > self.swag_start:
+            self.swag_model.collect_model(self.actor)
+            self.swag_critic.collect_model(self.critic) # if swag critic
+
+            # batch norm
+            if episode == 0 or episode % self.eval_freq == self.eval_freq-1:  # to do : check
+                self.swag_eval(self.swag_model, self.actor_sample, state_batch)
+                self.swag_eval(self.swag_critic, self.critic_sample, state_batch) # if swag critic
+
 
     def cuda_convert(self):
         if len(self.gpu_ids) == 1:
@@ -193,13 +211,16 @@ class DDPG(object):
         # proto action
         if isinstance(s_t, tuple):
             s_t = s_t[0]
+
+        # sample and batch norm
+        self.swag_model.sample(scale=0.5)
+        swag_utils.bn_update(s_t, self.swag_model)
+
         action = to_numpy(
-            self.actor_sample(to_tensor(np.array([s_t]), gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0])),
+            self.actor(to_tensor(np.array([s_t]), gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0])),
             gpu_used=self.gpu_used
         ).squeeze(0)
-        if expl:
-            action += self.is_training * max(self.epsilon, 0) * self.random_process.sample()
-
+        action += self.is_training * max(self.epsilon, 0) * self.random_process.sample()
         action = np.clip(action, -1., 1.)
 
         if decay_epsilon:
@@ -223,14 +244,33 @@ class DDPG(object):
             ml = lambda storage, loc: storage
 
         self.actor.load_state_dict(
-            torch.load('output/{}/actor.pkl'.format(dir), map_location=ml)
+            torch.load('../output/{}/actor.pt'.format(dir), map_location=ml)
         )
 
         self.critic.load_state_dict(
-            torch.load('output/{}/critic.pkl'.format(dir), map_location=ml)
+            torch.load('../output/{}/critic.pt'.format(dir), map_location=ml)
         )
+        
         print('model weights loaded')
 
+    def load_swag_weights(self, dir):
+        if dir is None: return
+
+        if self.gpu_used:
+            # load all tensors to GPU (gpu_id)
+            ml = lambda storage, loc: storage.cuda(self.gpu_ids)
+        else:
+            # load all tensors to CPU
+            ml = lambda storage, loc: storage
+
+        self.swag_model.load_state_dict(
+            torch.load('../output/{}/swag_actor.pt'.format(dir), map_location=ml)
+        )
+
+        self.swag_critic.load_state_dict(
+            torch.load('../output/{}/swag_critic.pt'.format(dir), map_location=ml)
+        )
+        print('model weights loaded')
 
     def save_model(self,output):
         if len(self.gpu_ids) == 1 and self.gpu_ids[0] > 0:
@@ -247,7 +287,7 @@ class DDPG(object):
             torch.save(self.actor.module.state_dict(),
                        '{}/actor.pt'.format(output)
             )
-            torch.save(self.actor.module.state_dict(),
+            torch.save(self.critic.module.state_dict(),
                        '{}/critic.pt'.format(output)
                        )
         else:
@@ -260,6 +300,33 @@ class DDPG(object):
                 '{}/critic.pt'.format(output)
             )
 
+    def save_swag_model(self,output):
+        if len(self.gpu_ids) == 1 and self.gpu_ids[0] > 0:
+            with torch.cuda.device(self.gpu_ids[0]):
+                torch.save(
+                    self.swag_model.state_dict(),
+                    '{}/swag_actor.pt'.format(output)
+                )
+                torch.save(
+                    self.swag_critic.state_dict(),
+                    '{}/swag_critic.pt'.format(output)
+                )
+        elif len(self.gpu_ids) > 1:
+            torch.save(self.swag_model.module.state_dict(),
+                       '{}/swag_actor.pt'.format(output)
+            )
+            torch.save(self.swag_critic.module.state_dict(),
+                       '{}/swag_critic.pt'.format(output)
+                       )
+        else:
+            torch.save(
+                self.swag_model.state_dict(),
+                '{}/swag_actor.pt'.format(output)
+            )
+            torch.save(
+                self.swag_critic.state_dict(),
+                '{}/swag_critic.pt'.format(output)
+            )
     def seed(self,seed):
         torch.manual_seed(seed)
         if len(self.gpu_ids) > 0:
@@ -280,3 +347,13 @@ class DDPG(object):
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
         return 
+
+    def swag_sample_param(self, src, target, state_batch):
+        # swag bn 
+        src.sample(target, 0.5)
+        swag_utils.bn_update(state_batch, src)
+
+    def swag_eval(self, src, target, state_batch):
+        # swag bn 
+        src.set_swa(target)
+        swag_utils.bn_update(state_batch, src)

@@ -73,13 +73,27 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
             agent.save_model(save_model_dir)
             logger.info("### Model Saved before Ep:{0} ###".format(episode))
 
-def test(env, agent, model_path, test_episode, max_episode_length, logger, swag=False, alg='ddpg'):
+    # save swag params
+    if alg == 'ddpg' and swag == True:
+        agent.save_swag_model(save_model_dir)
+        logger.info("### SWAG Model Saved before Ep:{0} ###".format(episode))
 
-    agent.load_weights(model_path)
+def test(env, agent, model_path, test_episode, max_episode_length, logger, swag=False, alg='ddpg'):
+    
+    # load swag params
+    if swag:
+        agent.load_swag_weights(model_path)
+    else:
+        agent.load_weights(model_path)
+
     agent.is_training = False
     agent.eval()
 
-    policy = lambda x: agent.select_action(x, decay_epsilon=False)
+    #select swag action
+    if swag:
+        policy = lambda x: agent.select_swag_action(x, decay_epsilon=False)
+    else:
+        policy = lambda x: agent.select_action(x, decay_epsilon=False)
 
     episode_steps = 0
     episode_reward = 0.
@@ -90,8 +104,8 @@ def test(env, agent, model_path, test_episode, max_episode_length, logger, swag=
                 s_t = env.reset()
                 agent.reset(s_t)
 
-            action = policy(s_t)
-            s_t, r_t, done, _ = env.step(action)
+            action = policy(s_t)  # to do : multiple swag policy 
+            s_t, r_t, done, _, _= env.step(action)
             episode_steps += 1
             episode_reward += r_t
             if max_episode_length and episode_steps >= max_episode_length - 1:
