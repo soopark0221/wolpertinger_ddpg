@@ -22,6 +22,7 @@ if __name__ == "__main__":
 
     from util import get_output_folder, setup_logger
     from wolp_agent import WolpertingerAgent
+    from swag_agent import SWAGAgent
     from ddpg import DDPG
     args.save_model_dir = get_output_folder('../output', args.env)
 
@@ -53,6 +54,13 @@ if __name__ == "__main__":
             'args': args,
         }
         agent = DDPG(**agent_args)
+    elif args.alg == 'swag':
+        agent_args = {
+            'nb_states': nb_states,
+            'nb_actions': nb_actions,
+            'args': args,
+        }
+        agent = SWAGAgent(**agent_args)
     else:
         if continuous:
             agent_args = {
@@ -114,7 +122,8 @@ if __name__ == "__main__":
             'logger': log['RS_log'],
             'save_per_epochs': args.save_per_epochs,
             'swag':args.swag,
-            'swag_start':args.swag_start
+            'swag_start':args.swag_start,
+            'alg':args.alg,
         }
 
         train(**train_args)
@@ -130,6 +139,7 @@ if __name__ == "__main__":
             'logger': log['RS_log'],
             'save_per_epochs': args.save_per_epochs,
             'swag':args.swag,
+            'alg':args.alg,
         }
 
         test(**test_args)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episode_length, logger, save_per_epochs, swag_start, swag=False):
+def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episode_length, logger, save_per_epochs, swag_start, swag=False, alg='ddpg'):
     agent.is_training = True
     step = episode = episode_steps = 0
     episode_reward = 0.
@@ -17,7 +17,7 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
             if isinstance(s_t, tuple):
                 s_t = s_t[0]
             #if step <= warmup:
-            if swag:
+            if alg == 'swag':
                 if step < warmup:
                     action = agent.random_action()
                 elif episode < swag_start:
@@ -73,16 +73,13 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
             agent.save_model(save_model_dir)
             logger.info("### Model Saved before Ep:{0} ###".format(episode))
 
-def test(env, agent, model_path, test_episode, max_episode_length, logger, swag=False):
+def test(env, agent, model_path, test_episode, max_episode_length, logger, swag=False, alg='ddpg'):
 
     agent.load_weights(model_path)
     agent.is_training = False
     agent.eval()
 
-    if swag:
-        policy = lambda x: agent.select_swag_action(x, decay_epsilon=False)
-    else:
-        policy = lambda x: agent.select_action(x, decay_epsilon=False)
+    policy = lambda x: agent.select_action(x, decay_epsilon=False)
 
     episode_steps = 0
     episode_reward = 0.
