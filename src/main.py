@@ -10,6 +10,7 @@ from arg_parser import init_parser
 from setproctitle import setproctitle as ptitle
 from normalized_env import NormalizedEnv
 import gym
+from tensorboardX import SummaryWriter
 
 if __name__ == "__main__":
     ptitle('WOLP_DDPG')
@@ -21,7 +22,7 @@ if __name__ == "__main__":
 
     from util import get_output_folder, setup_logger
     from wolp_agent import WolpertingerAgent
-
+    from ddpg import DDPG
     args.save_model_dir = get_output_folder('../output', args.env)
 
     env = gym.make(args.env)
@@ -44,29 +45,37 @@ if __name__ == "__main__":
     if args.seed > 0:
         np.random.seed(args.seed)
         env.seed(args.seed)
-
-    if continuous:
+    
+    if args.alg == 'ddpg':
         agent_args = {
-            'continuous': continuous,
-            'max_actions': None,
-            'action_low': action_low,
-            'action_high': action_high,
             'nb_states': nb_states,
             'nb_actions': nb_actions,
             'args': args,
         }
+        agent = DDPG(**agent_args)
     else:
-        agent_args = {
-            'continuous': continuous,
-            'max_actions': max_actions,
-            'action_low': None,
-            'action_high': None,
-            'nb_states': nb_states,
-            'nb_actions': nb_actions,
-            'args': args,
-        }
+        if continuous:
+            agent_args = {
+                'continuous': continuous,
+                'max_actions': None,
+                'action_low': action_low,
+                'action_high': action_high,
+                'nb_states': nb_states,
+                'nb_actions': nb_actions,
+                'args': args,
+            }
+        else:
+            agent_args = {
+                'continuous': continuous,
+                'max_actions': max_actions,
+                'action_low': None,
+                'action_high': None,
+                'nb_states': nb_states,
+                'nb_actions': nb_actions,
+                'args': args,
+            }
 
-    agent = WolpertingerAgent(**agent_args)
+        agent = WolpertingerAgent(**agent_args)
 
     if args.load:
         agent.load_weights(args.load_model_dir)

@@ -64,9 +64,58 @@ class DDPG(object):
         self.is_training = True
 
         self.continious_action_space = False
+        self.swag_lr = args.swag_lr
+        self.lr_init = args.lr_init
+        self.swag_start = args.swag_start
+        self.max_episode = args.max_episode
+        self.swag = args.swag
+        self.eval_freq = args.eval_freq
+        self.sample_freq = args.sample_freq
 
-    def update_policy(self):
-        pass
+    def update_policy(self, episode):
+        # Sample batch
+        state_batch, action_batch, reward_batch, \
+        next_state_batch, terminal_batch = self.memory.sample_and_split(self.batch_size)
+        
+        #next_state_batch = to_tensor(next_state_batch, volatile=True, gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0])
+
+        # Prepare for the target q batch
+        next_q_values = self.critic_target([
+            to_tensor(next_state_batch, volatile=True, gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0]),
+            self.actor_target(to_tensor(next_state_batch, volatile=True, gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0])),
+        ])
+        next_q_values.volatile=False
+
+        target_q_batch = to_tensor(reward_batch, gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0]) + \
+            self.gamma*to_tensor(terminal_batch.astype(np.float), gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0])*next_q_values
+
+        # Critic update
+        self.critic.zero_grad()
+
+        q_batch = self.critic([ to_tensor(state_batch, gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0]), to_tensor(action_batch, gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0]) ])
+        
+        value_loss = criterion(q_batch, target_q_batch)
+        value_loss.backward()
+        self.critic_optim.step()
+
+        # Actor update
+        self.actor.zero_grad()
+
+        policy_loss = -self.critic([
+            to_tensor(state_batch, gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0]),
+            self.actor(to_tensor(state_batch, gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0]))
+        ])
+
+        policy_loss = policy_loss.mean()
+        policy_loss.backward()
+        self.actor_optim.step()
+
+        # Target update
+        soft_update(self.actor_target, self.actor, self.tau_update)
+        soft_update(self.critic_target, self.critic, self.tau_update)
+        # update lr
+        lr = self.schedule(episode)
+        self.adjust_learning_rate(self.actor_optim, lr)
 
     def cuda_convert(self):
         if len(self.gpu_ids) == 1:
@@ -120,7 +169,7 @@ class DDPG(object):
 
     def random_action(self):
         action = np.random.uniform(-1., 1., self.nb_actions)
-        # self.a_t = action
+        self.a_t = action
         return action
 
     def select_action(self, s_t, decay_epsilon=True):
@@ -137,7 +186,7 @@ class DDPG(object):
         if decay_epsilon:
             self.epsilon -= self.depsilon
         
-        # self.a_t = action
+        self.a_t = action
         return action
         
     def select_swag_action(self, s_t, decay_epsilon=True, expl=False):
@@ -156,7 +205,7 @@ class DDPG(object):
         if decay_epsilon:
             self.epsilon -= self.depsilon
         
-        # self.a_t = action
+        self.a_t = action
         return action
 
     def reset(self, s_t):
@@ -215,3 +264,19 @@ class DDPG(object):
         torch.manual_seed(seed)
         if len(self.gpu_ids) > 0:
             torch.cuda.manual_seed_all(seed)
+
+    def schedule(self, epoch):
+        t = (epoch) / (self.swag_start if self.swag else self.max_episode)
+        lr_ratio = self.swag_lr / self.lr_init if self.swag else 0.01
+        if t <= 0.5:
+            factor = 1.0
+        elif t <= 0.9:
+            factor = 1.0 - (1.0 - lr_ratio) * (t - 0.5) / 0.4
+        else:
+            factor = lr_ratio
+        return self.lr_init * factor
+
+    def adjust_learning_rate(self, optimizer, lr):
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+        return 

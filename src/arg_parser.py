@@ -45,6 +45,7 @@ def init_parser(alg):
         parser.add_argument('--swag_lr', default=0.0001, type=float, help='')
         parser.add_argument('--eval_freq', default=5, type=int, help='')
         parser.add_argument('--sample_freq', default=30, type=int, help='')
+        parser.add_argument('--alg', default='ddpg', type=str, help='')
 
         return parser
 
