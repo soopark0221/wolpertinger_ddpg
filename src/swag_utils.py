@@ -243,7 +243,7 @@ def bn_update(loader, model, verbose=False, subset=None, **kwargs):
             input = input.cuda(non_blocking=True)
             input_var = torch.autograd.Variable(input)
             b = input_var.data.size(0)
-
+            
             momentum = b / (n + b)
             for module in momenta.keys():
                 module.momentum = momentum

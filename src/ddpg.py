@@ -213,7 +213,7 @@ class DDPG(object):
             s_t = s_t[0]
 
         # sample and batch norm
-        self.swag_model.sample(scale=0.5)
+        self.swag_model.sample(self.actor, scale=0.5)
         swag_utils.bn_update(s_t, self.swag_model)
 
         action = to_numpy(
