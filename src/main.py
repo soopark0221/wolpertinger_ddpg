@@ -24,8 +24,10 @@ if __name__ == "__main__":
     from wolp_agent import WolpertingerAgent
     from swag_agent import SWAGAgent
     from ddpg import DDPG
-    args.save_model_dir = get_output_folder('../output', args.env)
-
+    if args.mode == 'train':
+        args.save_model_dir = get_output_folder('../output', args.env)
+    else :
+        args.save_model_dir = '../output' + '/'+ args.env + '/' + args.load_model_dir
     env = gym.make(args.env)
     continuous = None
     try:
@@ -93,7 +95,9 @@ if __name__ == "__main__":
 
     # set logger, log args here
     log = {}
+    print(args.save_model_dir)
     if args.mode == 'train':
+        print(args.save_model_dir)
         setup_logger('RS_log', r'{}/RS_train_log'.format(args.save_model_dir))
     elif args.mode == 'test':
         setup_logger('RS_log', r'{}/RS_test_log'.format(args.save_model_dir))
@@ -133,7 +137,7 @@ if __name__ == "__main__":
         test_args = {
             'env': env,
             'agent': agent,
-            'model_path': args.load_model_dir,
+            'model_path': args.save_model_dir,
             'test_episode': args.test_episode,
             'max_episode_length': args.max_episode_length,
             'logger': log['RS_log'],

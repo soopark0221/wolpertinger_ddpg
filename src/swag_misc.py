@@ -52,16 +52,20 @@ class SWAG(torch.nn.Module):
             target_model = self.base_model
         self.set_weights(target_model, self.mean, self.model_device)
 
-    def sample(self, target_model=None, scale=0.5, diag_noise=True):
+    def sample(self, target_model=None, scale=0.5, diag_noise=True, add_swag=True):
         self.fit()
         mean, variance = self._get_mean_and_variance()
-        #self.cov_factor = self.cov_mat_sqrt.clone() / (self.cov_mat_sqrt.size(0) - 1) ** 0.5
-        eps_low_rank = torch.randn(self.cov_factor.size()[0]).double()
-        z = self.cov_factor.t() @ eps_low_rank
-        if diag_noise:
-            z += variance.sqrt() * torch.randn_like(variance)
-        z *= scale ** 0.5
-        sample = mean + z
+
+        if add_swag == True:
+            #self.cov_factor = self.cov_mat_sqrt.clone() / (self.cov_mat_sqrt.size(0) - 1) ** 0.5
+            eps_low_rank = torch.randn(self.cov_factor.size()[0]).double()
+            z = self.cov_factor.t() @ eps_low_rank
+            if diag_noise:
+                z += variance.sqrt() * torch.randn_like(variance)
+            z *= scale ** 0.5
+            sample = mean + z
+        else: 
+            sample = mean
 
         # apply to parameters
         if target_model == None:

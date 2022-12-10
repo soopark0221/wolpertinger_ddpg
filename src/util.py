@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from torch.autograd import Variable
 import logging
-
+from pathlib import Path
 
 def to_numpy(var, gpu_used=False):
     return var.cpu().data.numpy().astype(np.float64) if gpu_used else var.data.numpy().astype(np.float64)
@@ -49,6 +49,7 @@ def get_output_folder(parent_dir, env_name):
     parent_dir/run_dir
       Path to this run's save directory.
     """
+    '''
     os.makedirs(parent_dir, exist_ok=True)
     experiment_id = 0
     for folder_name in os.listdir(parent_dir):
@@ -65,7 +66,24 @@ def get_output_folder(parent_dir, env_name):
     parent_dir = os.path.join(parent_dir, env_name)
     parent_dir = parent_dir + '-run{}'.format(experiment_id)
     os.makedirs(parent_dir, exist_ok=True)
-    return parent_dir
+    '''
+    model_dir = Path(parent_dir) / env_name
+
+    if not model_dir.exists():
+        curr_run = 'run1'
+    else:
+        exst_run_nums = [int(str(folder.name).split('run')[1]) for folder in
+                         model_dir.iterdir() if
+                         str(folder.name).startswith('run')]
+        if len(exst_run_nums) == 0:
+            curr_run = 'run1'
+        else:
+            curr_run = 'run%i' % (max(exst_run_nums) + 1)
+    run_dir = model_dir / curr_run
+    log_dir = run_dir / 'logs'
+    os.makedirs(run_dir)
+
+    return run_dir #parent_dir
 
 def setup_logger(logger_name, log_file, level=logging.INFO):
     l = logging.getLogger(logger_name)

@@ -213,7 +213,7 @@ class DDPG(object):
             s_t = s_t[0]
 
         # sample and batch norm
-        self.swag_model.sample(self.actor, scale=0.5)
+        self.swag_model.sample(self.actor, scale=0.5, add_swag=False)
         swag_utils.bn_update(s_t, self.swag_model)
 
         action = to_numpy(
@@ -242,13 +242,12 @@ class DDPG(object):
         else:
             # load all tensors to CPU
             ml = lambda storage, loc: storage
-
         self.actor.load_state_dict(
-            torch.load('../output/{}/actor.pt'.format(dir), map_location=ml)
+            torch.load('{}/actor.pt'.format(dir), map_location=ml)
         )
 
         self.critic.load_state_dict(
-            torch.load('../output/{}/critic.pt'.format(dir), map_location=ml)
+            torch.load('{}/critic.pt'.format(dir), map_location=ml)
         )
         
         print('model weights loaded')
@@ -262,13 +261,12 @@ class DDPG(object):
         else:
             # load all tensors to CPU
             ml = lambda storage, loc: storage
-
         self.swag_model.load_state_dict(
-            torch.load('../output/{}/swag_actor.pt'.format(dir), map_location=ml)
+            torch.load('{}/swag_actor.pt'.format(dir), map_location=ml)
         )
 
         self.swag_critic.load_state_dict(
-            torch.load('../output/{}/swag_critic.pt'.format(dir), map_location=ml)
+            torch.load('{}/swag_critic.pt'.format(dir), map_location=ml)
         )
         print('model weights loaded')
 
