@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episode_length, logger, save_per_epochs, swag_start, swag=False, alg='ddpg'):
+def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episode_length, log, save_per_epochs, swag_start, swag=False, alg='ddpg'):
     agent.is_training = True
     step = episode = episode_steps = 0
     episode_reward = 0.
     s_t = None
+    evaluate = True
+    logger = log['RS_log']
+    eval_logger = log['RS_eval_log']
     while episode < max_episode:
         while True:
             if s_t is None:
@@ -49,7 +52,7 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
             episode_reward += r_t
             s_t = s_t1
             # s_t = deepcopy(s_t1)
-
+            
             if done:  # end of an episode
                 logger.info(
                     "Ep:{0} | R:{1:.4f}".format(episode, episode_reward)
@@ -72,8 +75,29 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
         if step > warmup and episode > 0 and episode % save_per_epochs == 0:
             agent.save_model(save_model_dir)
             logger.info("### Model Saved before Ep:{0} ###".format(episode))
-
-    # save swag params
+            
+            #eval code
+            if evaluate:
+                episode_steps = 0
+                episode_reward = 0.
+                s_t = None
+                for i in range(100):
+                    while True:
+                        if s_t is None:
+                            s_t = env.reset()
+                            agent.reset(s_t)
+                        action = agent.select_action(s_t)  # to do : multiple swag policy 
+                        s_t, r_t, done, _, _= env.step(action)
+                        episode_steps += 1
+                        episode_reward += r_t
+                        if max_episode_length and episode_steps >= max_episode_length - 1:
+                            done = True
+                        if done:  # end of an episode
+                            eval_logger.info(
+                                "Ep:{0} | R:{1:.4f}".format(i+1, episode_reward/(i+1))
+                            )
+                            s_t = None
+                            break    # save swag params
     if alg == 'ddpg' and swag == True:
         agent.save_swag_model(save_model_dir)
         logger.info("### SWAG Model Saved before Ep:{0} ###".format(episode))
@@ -85,7 +109,6 @@ def test(env, agent, model_path, test_episode, max_episode_length, logger, swag=
         agent.load_swag_weights(model_path)
     else:
         agent.load_weights(model_path)
-
     agent.is_training = False
     agent.eval()
 
@@ -112,7 +135,7 @@ def test(env, agent, model_path, test_episode, max_episode_length, logger, swag=
                 done = True
             if done:  # end of an episode
                 logger.info(
-                    "Ep:{0} | R:{1:.4f}".format(i+1, episode_reward)
+                    "Ep:{0} | R:{1:.4f}".format(i+1, episode_reward/(i+1))
                 )
                 s_t = None
                 break

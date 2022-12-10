@@ -99,11 +99,16 @@ if __name__ == "__main__":
     if args.mode == 'train':
         print(args.save_model_dir)
         setup_logger('RS_log', r'{}/RS_train_log'.format(args.save_model_dir))
+        setup_logger('RS_eval_log', r'{}/RS_eval_log'.format(args.save_model_dir))
     elif args.mode == 'test':
         setup_logger('RS_log', r'{}/RS_test_log'.format(args.save_model_dir))
     else:
         raise RuntimeError('undefined mode {}'.format(args.mode))
     log['RS_log'] = logging.getLogger('RS_log')
+    try:
+        log['RS_eval_log'] = logging.getLogger('RS_eval_log')
+    except:
+        pass
     d_args = vars(args)
     d_args['max_actions'] = args.max_actions
     for key in agent_args.keys():
@@ -112,6 +117,10 @@ if __name__ == "__main__":
         d_args[key] = agent_args[key]
     for k in d_args.keys():
         log['RS_log'].info('{0}: {1}'.format(k, d_args[k]))
+        try:
+            log['RS_eval_log'].info('{0}: {1}'.format(k, d_args[k]))
+        except:
+            pass
 
     if args.mode == 'train':
 
@@ -123,7 +132,7 @@ if __name__ == "__main__":
             'warmup': args.warmup,
             'save_model_dir': args.save_model_dir,
             'max_episode_length': args.max_episode_length,
-            'logger': log['RS_log'],
+            'log': log, #['RS_log'],
             'save_per_epochs': args.save_per_epochs,
             'swag':args.swag,
             'swag_start':args.swag_start,
