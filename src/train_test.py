@@ -10,6 +10,7 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
     logger = log['RS_log']
     eval_logger = log['RS_eval_log']
     while episode < max_episode:
+        agent.is_training = True
         while True:
             if s_t is None:
                 s_t = env.reset()
@@ -77,16 +78,19 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
             logger.info("### Model Saved before Ep:{0} ###".format(episode))
             
             #eval code
-            if evaluate:
-                episode_steps = 0
-                episode_reward = 0.
+            if evaluate and episode > swag_start:
+                agent.is_training = False
+                agent.eval()
                 s_t = None
                 for i in range(100):
                     while True:
                         if s_t is None:
                             s_t = env.reset()
                             agent.reset(s_t)
-                        action = agent.select_action(s_t)  # to do : multiple swag policy 
+                        if swag:
+                            action = agent.select_swag_action(s_t)
+                        else:
+                            action = agent.select_action(s_t)  # to do : multiple swag policy 
                         s_t, r_t, done, _, _= env.step(action)
                         episode_steps += 1
                         episode_reward += r_t
@@ -98,6 +102,8 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
                             )
                             s_t = None
                             break    # save swag params
+                episode_steps = 0
+                episode_reward = 0.
     if alg == 'ddpg' and swag == True:
         agent.save_swag_model(save_model_dir)
         logger.info("### SWAG Model Saved before Ep:{0} ###".format(episode))

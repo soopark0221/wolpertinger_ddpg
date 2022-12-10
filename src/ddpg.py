@@ -126,13 +126,14 @@ class DDPG(object):
 
         # collect swag
         if self.swag and (episode+1) > self.swag_start:
+            print('collect swa')
             self.swag_model.collect_model(self.actor)
             self.swag_critic.collect_model(self.critic) # if swag critic
 
             # batch norm
-            if episode == 0 or episode % self.eval_freq == self.eval_freq-1:  # to do : check
-                self.swag_eval(self.swag_model, self.actor_sample, state_batch)
-                self.swag_eval(self.swag_critic, self.critic_sample, state_batch) # if swag critic
+            #if episode == 0 or episode % self.eval_freq == self.eval_freq-1:  # to do : check
+            #    self.swag_eval(self.swag_model, self.actor_sample, state_batch)
+            #    self.swag_eval(self.swag_critic, self.critic_sample, state_batch) # if swag critic
 
 
     def cuda_convert(self):
@@ -213,11 +214,11 @@ class DDPG(object):
             s_t = s_t[0]
 
         # sample and batch norm
-        self.swag_model.sample(self.actor, scale=0.5, add_swag=False)
+        self.swag_model.sample(self.actor_sample, scale=0.5, add_swag=False)
         swag_utils.bn_update(s_t, self.swag_model)
 
         action = to_numpy(
-            self.actor(to_tensor(np.array([s_t]), gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0])),
+            self.actor_sample(to_tensor(np.array([s_t]), gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0])),
             gpu_used=self.gpu_used
         ).squeeze(0)
         action += self.is_training * max(self.epsilon, 0) * self.random_process.sample()
