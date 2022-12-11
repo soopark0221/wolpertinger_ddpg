@@ -77,7 +77,7 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
             agent.save_model(save_model_dir)
             logger.info("### Model Saved before Ep:{0} ###".format(episode))
             #eval code
-            if evaluate and episode > swag_start:
+            if evaluate == True and episode > swag_start:
                 agent.is_training = False
                 agent.eval()
                 s_t = None
@@ -96,9 +96,9 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
                         episode_reward += r_t
                         if max_episode_length and episode_steps >= max_episode_length - 1:
                             done = True
-                        if done:  # end of an episode
+                        if i == 99 and done:  # end of an episode
                             eval_logger.info(
-                                "Ep:{0} | R:{1:.4f}".format(i+1, episode_reward/(i+1))
+                                "Ep:{0} | R:{1:.4f}".format(episode, episode_reward/(i+1))
                             )
                             s_t = None
                             break    # save swag params

@@ -220,7 +220,8 @@ class DDPG(object):
             self.actor_sample(to_tensor(np.array([s_t]), gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0])),
             gpu_used=self.gpu_used
         ).squeeze(0)
-        action += self.is_training * max(self.epsilon, 0) * self.random_process.sample()
+        if expl == True:
+            action += self.is_training * max(self.epsilon, 0) * self.random_process.sample()
         action = np.clip(action, -1., 1.)
 
         if decay_epsilon:
