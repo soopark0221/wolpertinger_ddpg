@@ -18,13 +18,13 @@ criterion = nn.MSELoss()
 class DDPG(object):
     def __init__(self, args, nb_states, nb_actions):
         USE_CUDA = torch.cuda.is_available()
-        if args.seed > 0:
-            self.seed(args.seed)
 
         self.nb_states =  nb_states
         self.nb_actions= nb_actions
         self.gpu_ids = [i for i in range(args.gpu_nums)] if USE_CUDA and args.gpu_nums > 0 else [-1]
         self.gpu_used = True if self.gpu_ids[0] >= 0 else False
+        if args.seed > 0:
+            self.seed(args.seed)
 
         net_cfg = {
             'hidden1': args.hidden1,
@@ -126,7 +126,6 @@ class DDPG(object):
 
         # collect swag
         if self.swag and (episode+1) > self.swag_start:
-            print('collect swa')
             self.swag_model.collect_model(self.actor)
             self.swag_critic.collect_model(self.critic) # if swag critic
 

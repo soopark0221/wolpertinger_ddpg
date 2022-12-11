@@ -47,7 +47,10 @@ if __name__ == "__main__":
 
     if args.seed > 0:
         np.random.seed(args.seed)
-        env.seed(args.seed)
+        try:
+            env.seed(args.seed)
+        except:
+            pass
     
     if args.alg == 'ddpg':
         agent_args = {
