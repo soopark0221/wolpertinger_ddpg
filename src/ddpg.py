@@ -206,15 +206,15 @@ class DDPG(object):
         
         self.a_t = action
         return action
-        
+    
     def select_swag_action(self, s_t, decay_epsilon=True, expl=False):
         # proto action
         if isinstance(s_t, tuple):
             s_t = s_t[0]
 
         # sample and batch norm
-        self.swag_model.sample(self.actor_sample, scale=0.5, add_swag=False)
-        swag_utils.bn_update(s_t, self.swag_model)
+        #self.swag_model.sample(self.actor_sample, scale=0.5, add_swag=False)
+        #swag_utils.bn_update(s_t, self.swag_model)
 
         action = to_numpy(
             self.actor_sample(to_tensor(np.array([s_t]), gpu_used=self.gpu_used, gpu_0=self.gpu_ids[0])),
@@ -346,10 +346,10 @@ class DDPG(object):
             param_group['lr'] = lr
         return 
 
-    def swag_sample_param(self, src, target, state_batch):
+    def swag_sample_param(self, src, target): #, state_batch):
         # swag bn 
-        src.sample(target, 0.5)
-        swag_utils.bn_update(state_batch, src)
+        src.sample(target, 0.5, add_swag=False)
+        #swag_utils.bn_update(state_batch, src)
 
     def swag_eval(self, src, target, state_batch):
         # swag bn 

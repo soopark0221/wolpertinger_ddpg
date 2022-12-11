@@ -68,19 +68,16 @@ class SWAGAgent(DDPG):
         lr = self.schedule(episode)
         self.adjust_learning_rate(self.actor_optim, lr)
         if self.swag and (episode+1) > self.swag_start:
-            collect_start = time.process_time()
             self.swag_model.collect_model(self.actor)
-            collect_end = time.process_time()
             # batch norm
-            if episode == 0 or episode % self.eval_freq == self.eval_freq-1:
-                eval_start = time.process_time()
-                self.swag_eval(state_batch)
-                eval_end = time.process_time()
+            #if episode == 0 or episode % self.eval_freq == self.eval_freq-1:
+            #    eval_start = time.process_time()
+            #    self.swag_eval(state_batch)
+            #    eval_end = time.process_time()
+            
             # sample and batch norm
             if episode % self.sample_freq == 0:
-                swag_sample_start= time.process_time()
-                self.swag_sample_param(state_batch)
-                swag_sample_end= time.process_time()
+                self.swag_model.sample(self.actor_sample, 0.5)
 
     def cuda_convert(self):
         if len(self.gpu_ids) == 1:

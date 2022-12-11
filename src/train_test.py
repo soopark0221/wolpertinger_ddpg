@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episode_length, log, save_per_epochs, swag_start, swag=False, alg='ddpg'):
+def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episode_length, log, save_per_epochs, swag_start, swag=False, alg='ddpg', evaluate=False):
     agent.is_training = True
     step = episode = episode_steps = 0
     episode_reward = 0.
     s_t = None
-    evaluate = True
+    evaluate = evaluate
     logger = log['RS_log']
     eval_logger = log['RS_eval_log']
     while episode < max_episode:
@@ -76,12 +76,12 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
         if step > warmup and episode > 0 and episode % save_per_epochs == 0:
             agent.save_model(save_model_dir)
             logger.info("### Model Saved before Ep:{0} ###".format(episode))
-            
             #eval code
             if evaluate and episode > swag_start:
                 agent.is_training = False
                 agent.eval()
                 s_t = None
+                agent.swag_sample_param(agent.swag_model, agent.actor_sample)
                 for i in range(100):
                     while True:
                         if s_t is None:

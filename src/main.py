@@ -140,6 +140,7 @@ if __name__ == "__main__":
             'swag':args.swag,
             'swag_start':args.swag_start,
             'alg':args.alg,
+            'evaluate':args.evaluate,
         }
 
         train(**train_args)
