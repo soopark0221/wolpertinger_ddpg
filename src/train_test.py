@@ -96,9 +96,9 @@ def train(continuous, env, agent, max_episode, warmup, save_model_dir, max_episo
                         episode_reward += r_t
                         if max_episode_length and episode_steps >= max_episode_length - 1:
                             done = True
-                        if i == 99 and done:  # end of an episode
+                        if done:  # end of an episode
                             eval_logger.info(
-                                "Ep:{0} | R:{1:.4f}".format(episode, episode_reward/(i+1))
+                                "Ep:{0} | R:{1:.4f}".format(i+1, episode_reward/(i+1))
                             )
                             s_t = None
                             break    # save swag params
